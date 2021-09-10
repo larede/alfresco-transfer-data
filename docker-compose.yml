@@ -1,0 +1,172 @@
+version: "3.8"
+
+services:
+  alfrescoA:
+    image: alfresco/alfresco-content-repository-community:7.0.0
+    restart: on-failure:10
+    environment:
+      JAVA_TOOL_OPTIONS: "
+        -Dencryption.keystore.type=JCEKS
+        -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+        -Dencryption.keyAlgorithm=DESede
+        -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+        -Dmetadata-keystore.password=mp6yc0UD9e
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.metadata.password=oKIWzVdEdA
+        -Dmetadata-keystore.metadata.algorithm=DESede
+        "
+      JAVA_OPTS: "
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.username=alfrescoA
+        -Ddb.password=alfrescoA
+        -Ddb.url=jdbc:postgresql://postgresA:5432/alfrescoA
+        -Dsolr.host=solr6
+        -Dsolr.port=8983
+        -Dsolr.http.connection.timeout=1000
+        -Dsolr.secureComms=none
+        -Dsolr.base.url=/solr
+        -Dindex.subsystem.name=solr6
+        -Dooo.enabled=false
+        -Djodconverter.enabled=false
+        -Dmessaging.broker.url=\"failover:(nio://activemqA:61616)?timeout=3000&jms.useCompression=true\"
+        -Ddeployment.method=DOCKER_COMPOSE
+        -DlocalTransform.core-aio.url=http://transform-core-aio:8090/
+        -Dcsrf.filter.enabled=false
+        -Dreplication.enabled=true
+        -Dreplication.transfer.readonly=false
+        "
+    ports:
+      - 8080:8080
+    volumes:
+      - alfrescoA_content:/usr/local/tomcat/alf_data
+
+  solr6:
+    image: alfresco/alfresco-search-services:2.0.1
+    restart: on-failure:10
+    healthcheck:
+      test: curl -s http://alfrescoA:8080/alfresco/api/-default-/public/cmis/versions/1.1/browser | grep -c -e '401' || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 30
+    environment:
+      - SOLR_ALFRESCO_HOST=alfrescoA
+      - SOLR_ALFRESCO_PORT=8080
+      - SOLR_SOLR_HOST=localhost
+      - SOLR_SOLR_PORT=8983
+      - SOLR_CREATE_ALFRESCO_DEFAULTS=alfresco,archive
+      - ALFRESCO_SECURE_COMMS=none
+            
+  transform-core-aio:
+    image: alfresco/alfresco-transform-core-aio:2.4.0
+    environment:
+      JAVA_OPTS: " -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80"
+
+  activemqA:
+    image: alfresco/alfresco-activemq:5.16.1
+        
+  shareA:
+    image: alfresco/alfresco-share:7.0.0
+    restart: on-failure:10
+    environment:
+      REPO_HOST: alfrescoA
+      REPO_PORT: "8080"
+    ports:
+      - 8081:8080
+
+  postgresA:
+    image: postgres:13.1
+    restart: on-failure:10
+    environment:
+      - POSTGRES_PASSWORD=alfrescoA
+      - POSTGRES_USER=alfrescoA
+      - POSTGRES_DB=alfrescoA
+    command: postgres -c max_connections=300
+    volumes:
+      - postgresA_data:/var/lib/postgresql/data
+
+  alfrescoB:
+    image: alfresco/alfresco-content-repository-community:7.0.0
+    restart: on-failure:10
+    environment:
+      JAVA_TOOL_OPTIONS: "
+        -Dencryption.keystore.type=JCEKS
+        -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+        -Dencryption.keyAlgorithm=DESede
+        -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+        -Dmetadata-keystore.password=mp6yc0UD9e
+        -Dmetadata-keystore.aliases=metadata
+        -Dmetadata-keystore.metadata.password=oKIWzVdEdA
+        -Dmetadata-keystore.metadata.algorithm=DESede
+        "
+      JAVA_OPTS: "
+        -Ddb.driver=org.postgresql.Driver
+        -Ddb.username=alfrescoB
+        -Ddb.password=alfrescoB
+        -Ddb.url=jdbc:postgresql://postgresB:5432/alfrescoB
+        -Dooo.enabled=false
+        -Djodconverter.enabled=false
+        -Dmessaging.broker.url=\"failover:(nio://activemqB:61616)?timeout=3000&jms.useCompression=true\"
+        -Ddeployment.method=DOCKER_COMPOSE
+        -Dtransform.service.enabled=false
+        -Dlocal.transform.service.enabled=false
+        -Dreplication.enabled=true
+        -Dreplication.transfer.readonly=false
+        -Dtransferservice.receiver.enabled=true
+        -Dtransferservice.receiver.lockRefreshTime=60000
+        -Dtransferservice.receiver.lockRetryCount=3
+        -Dtransferservice.receiver.lockRetryWait=100
+        -Dtransferservice.receiver.lockTimeOut=30000000
+        -Dwebscripts.encryptTempFiles=false
+        -Dwebscripts.memoryThreshold=536870912
+        -Dwebscripts.setMaxContentSize=536870912000
+        "
+    ports:
+      - 8082:8080
+    volumes:
+      - alfrescoB_content:/usr/local/tomcat/alf_data
+      - ftr_data:/usr/local/tomcat/ftr-root
+
+  activemqB:
+    image: alfresco/alfresco-activemq:5.16.1
+
+  shareB:
+    image: alfresco/alfresco-share:7.0.0
+    restart: on-failure:10
+    ports:
+      - 8083:8080
+    environment:
+      - REPO_HOST=alfrescoB
+      - REPO_PORT=8080
+
+  postgresB:
+    image: postgres:13.1
+    restart: on-failure:10
+    environment:
+      - POSTGRES_PASSWORD=alfrescoB
+      - POSTGRES_USER=alfrescoB
+      - POSTGRES_DB=alfrescoB
+    command: postgres -c max_connections=300
+    volumes:
+      - postgresB_data:/var/lib/postgresql/data
+
+  alfresco-ftr:
+    image: airc/alfresco-ftr
+    build:
+      context: ./alfresco-ftr
+      dockerfile: Dockerfile
+    ports:
+      - 9090:9090
+    volumes:
+      - ftr_data:/opt/app/ftr-root
+
+volumes:
+  alfrescoA_content:
+    driver: local
+  postgresA_data:
+    driver: local
+  alfrescoB_content:
+    driver: local
+  postgresB_data:
+    driver: local
+  ftr_data:
+    driver: local
