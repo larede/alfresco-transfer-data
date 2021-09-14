@@ -27,7 +27,7 @@ $ docker-compose up -d
 
 ### Pros & Crons ###
     * Very fast process
-    * Not keep UUIDs, creator user, etc
+    * Doesn't keep UUIDs, create user, etc
 
 ## Option #2 - Replication data
 
@@ -42,7 +42,7 @@ $ docker-compose up -d
     * http://localhost:8083/share
 
 ### Pros & Crons ###
-    * Keep UUIDs, creator user, etc
+    * Keeps UUIDs, creator user, etc
     * Not a fast process
 
 ## Option #3 - ACP Export & Import
@@ -109,5 +109,5 @@ $ docker restart $(docker ps | grep alfrescoB | awk '{print $1}')
 
 ### Pros & Crons ###
     * Very slow process
-    * keep UUIDs
-    * Not work with a lot of data
+    * keeps UUIDs
+    * Doesn't work with a large amount of data
